@@ -27,7 +27,7 @@ brownie compile
 
 3. Add the ganache-gui network to the list of networks
 ```bash
-bro
+brownie networks add Ethereum ganache-local host=http://127.0.0.1:7545 chainid=5777
 ```
 
 4. Run the script to interact with the deployed contract using the following command
