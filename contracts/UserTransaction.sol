@@ -5,6 +5,7 @@ contract UserTransaction {
 
     uint public total_users;
 
+    // structure for user
     struct user {
         uint user_id;
         string user_name;
@@ -12,6 +13,7 @@ contract UserTransaction {
         bool exists;
     }
 
+    // structure for joint account between users
     struct joint_account {
         mapping(uint => uint) balances;
         bool exists;
@@ -21,11 +23,19 @@ contract UserTransaction {
     mapping(uint => mapping(uint => joint_account)) public joint_accounts;
     mapping(uint => uint[]) public network; 
 
+    // joint accounts can be accessed as joint_accounts[u1][u2] where u1 < u2
+    // require statements are used to enforce certain conditions and give error output otherwise
+
     event debug1(string str1, uint uid);
 
+    // Returns back the balances of the indivudal users in that particular joint account
     function getJointAccountBalances(uint u1, uint u2) public view returns (uint[] memory, uint[] memory) {
-        uint id1 = u1 < u2 ? u1 : u2;
-        uint id2 = u1 < u2 ? u2 : u1;
+        uint id1 = u1; 
+        uint id2 = u2;
+        if(u2 < u1) {
+            id1 = u2;
+            id2 = u1;
+        }
 
         require(joint_accounts[id1][id2].exists, "Joint account does not exist");
 
@@ -42,6 +52,7 @@ contract UserTransaction {
         return (tokenIds, balances);
     }
 
+    // register user with a particular user id and user name
     function registerUser(uint user_id, string memory user_name) public {
         emit debug1("USER REGISTERED : ", user_id);
         require(! users[user_id].exists, "user already exists");
@@ -50,18 +61,25 @@ contract UserTransaction {
 
     }
 
+    // add balance to a user to define it's usable balance
     function addBalance(uint user_id, uint balance) public {
         
         require(users[user_id].exists, "user does not exist");
         users[user_id].user_balance += balance;
     }
 
+    // function to create account between two users u1 and u2 who contributew
+    // balances, bal1 and bal2 respectively
     function createAcc(uint u1, uint u2, uint bal1, uint bal2) public {
 
         require(u1 != u2, "user cannot create account with themselves");
 
-        uint id1 = u1 < u2 ? u1 : u2;
-        uint id2 = u1 < u2 ? u2 : u1;
+        uint id1 = u1; 
+        uint id2 = u2;
+        if(u2 < u1) {
+            id1 = u2;
+            id2 = u1;
+        }
 
         require(users[u1].exists, "user does not exist");
         require(users[u2].exists, "user does not exist");
@@ -82,6 +100,7 @@ contract UserTransaction {
         users[u2].user_balance -= bal2;
     }
 
+    // function implementing BFS to find path from one user to another
     function findPath(uint sender, uint recipient, uint amount) public view returns (uint[] memory) {
         uint n = total_users;
 
@@ -118,10 +137,14 @@ contract UserTransaction {
                 // emit debug1("current user id : ", curr, "neighbor : ", neighbor);
 
                 // Arrange IDs for joint account lookup between `curr` and `neighbor`
-                uint id1 = curr < neighbor ? curr : neighbor;
-                uint id2 = curr < neighbor ? neighbor : curr;
+                uint id1 = curr; 
+                uint id2 = neighbor;
+                if(neighbor < curr) {
+                    id1 = neighbor;
+                    id2 = curr;
+                }
 
-                // Check joint account existence, balance, and if neighbor is unvisited
+                // Check if joint account exists, enough balance is present in the joint account, and if neighbor is unvisited
                 if (
                     joint_accounts[id1][id2].exists &&
                     joint_accounts[id1][id2].balances[curr] >= amount &&
@@ -134,7 +157,7 @@ contract UserTransaction {
             }
         }
 
-        // If recipient was never reached, return an empty array
+        // return an empty array if recipient not reached
         if (!visited[recipient]) {
             return new uint[](0);  
         }
@@ -145,7 +168,7 @@ contract UserTransaction {
             pathLength++;
         }
 
-        // Construct the path array in reverse order
+        // Construct the path
         uint[] memory path = new uint[](pathLength);
         uint index = pathLength - 1;
         for (uint p = recipient; p != sender; p = parent[p]) {
@@ -156,7 +179,7 @@ contract UserTransaction {
         return path;
     }
 
-
+    // function to send amount after finding path.
     function sendAmount(uint sender, uint recipient, uint amount) public {
         uint[] memory path = findPath(sender, recipient, amount);
 
@@ -165,32 +188,32 @@ contract UserTransaction {
         uint currentBalance = amount;
 
         for (uint i = 0; i < path.length - 1; i++) {
-            uint node1 = path[i];
-            uint node2 = path[i + 1];
+            uint u1 = path[i];
+            uint u2 = path[i + 1];
 
-            uint id1 = node1 < node2 ? node1 : node2;
-            uint id2 = node1 < node2 ? node2 : node1;
+            uint id1 = u1; 
+            uint id2 = u2;
+            if(u2 < u1) {
+                id1 = u2;
+                id2 = u1;
+            }
 
-            // require(joint_accounts[id1][id2].balances[node1] >= currentBalance, "Insufficient balance in joint account");
-
-            joint_accounts[id1][id2].balances[node1] -= currentBalance;
-            joint_accounts[id1][id2].balances[node2] += currentBalance;
+            joint_accounts[id1][id2].balances[u1] -= currentBalance;
+            joint_accounts[id1][id2].balances[u2] += currentBalance;
         }
-
-        // uint lastNode = path[path.length - 1];
-
-        // require(joint_accounts[lastNode][recipient].balances[lastNode] >= currentBalance, "Insufficient balance for recipient");
-
-        // joint_accounts[lastNode][recipient].balances[lastNode] -= currentBalance;
-        // joint_accounts[lastNode][recipient].balances[recipient] += currentBalance;
     }
-
+    
+    // function to close account between two users
     function closeAccount(uint u1, uint u2) public {
         require(users[u1].exists, "User 1 does not exist");
         require(users[u2].exists, "User 2 does not exist");
 
-        uint id1 = u1 < u2 ? u1 : u2;
-        uint id2 = u1 < u2 ? u2 : u1;
+        uint id1 = u1; 
+        uint id2 = u2;
+        if(u2 < u1) {
+            id1 = u2;
+            id2 = u1;
+        }
 
         require(joint_accounts[id1][id2].exists, "Joint account does not exist");
 

@@ -190,6 +190,19 @@ def TestTransactions(deployed_contract, n, t, every_k_transactions):
     plt.savefig("./results/success_ratios.png", dpi=300, format='png') 
     # plt.close(fig)
 
+def CloseAccount(deployed_contract, u1, u2):
+    '''
+    Function to close joint account between u1 and u2.
+    '''
+    
+    admin = accounts[0]
+
+    try:
+        tx = deployed_contract.closeAccount(u1, u2, {"from": admin})
+        tx.wait(1)
+    except Exception as e:
+        print(e)
+
 def main():
     # Clear any cache of previous runs
     ClearCache()
