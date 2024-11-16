@@ -47,17 +47,15 @@ def CreatePowerLawNetwork(n, m):
     
     # Simulate nodes coming in one by one with mentioned property
     for i in range(m, n):
-        # Create a list of existing node indices in which node index is repeated as many times as its degree
         if m==1 and i==1:
-            choice_list = [0]
+            chosen_indices = [0]
         else:
-            choice_list = []
-            for j in range(i-1):
-                choice_list += [j] * degree_dict[j]
-        
-        # Randomly choose first m elements from choice list
-        random.shuffle(choice_list)
-        chosen_indices = choice_list[:m]
+            node_indices = list(degree_dict.keys())
+            degrees = np.array([degree_dict[j] for j in node_indices])
+            probabilities = degrees / degrees.sum()
+            chosen_indices = np.random.choice(
+                node_indices, size=m, replace=False, p=probabilities
+            )
 
         # Connect the new node to the chosen nodes
         for j in chosen_indices:
@@ -66,13 +64,15 @@ def CreatePowerLawNetwork(n, m):
             degree_dict[j] += 1
     
     # Save graph of index vs degree
+    node_indices = sorted(list(degree_dict.keys()))
+    degrees = np.array([degree_dict[j] for j in node_indices])
     fig = plt.figure()
-    plt.scatter(degree_dict.keys(), degree_dict.values())
+    plt.scatter(node_indices, degrees)
     plt.title("Index vs Degree")
     plt.xlabel("Index")
     plt.ylabel("Degree")
     plt.savefig("./results/node_index_vs_degree.png", dpi=300, format='png') 
-    plt.close(fig)
+    # plt.close(fig)
     
     # Save graph of degree vs P(degree)
     degree_freq = {}
@@ -82,7 +82,7 @@ def CreatePowerLawNetwork(n, m):
             degree_freq[degree] = 1
         else:
             degree_freq[degree] += 1
-
+    
     degrees = np.array(list(degree_freq.keys()))
     degree_freq = np.array(list(degree_freq.values()))
     degree_prob = degree_freq / sum(degree_freq)
@@ -93,7 +93,30 @@ def CreatePowerLawNetwork(n, m):
     plt.xlabel("Degree")
     plt.ylabel("P(Degree)")
     plt.savefig("./results/degree_vs_proba.png", dpi=300, format='png') 
-    plt.close(fig)
+    # plt.close(fig)
+
+    # Save graph of log(degree) vs log(P(degree))
+    degree_freq = {}
+    for i in range(n):
+        degree = degree_dict[i]
+        if degree not in degree_freq:
+            degree_freq[degree] = 1
+        else:
+            degree_freq[degree] += 1
+    
+    degrees = np.array(sorted(list(degree_freq.keys())))
+    degree_freq = np.array([degree_freq[j] for j in degrees])
+    
+    log_degree_prob = np.log(degree_freq / sum(degree_freq))
+    log_degrees = np.log(degrees)
+
+    fig = plt.figure()
+    plt.scatter(log_degrees, log_degree_prob)
+    plt.title("Log Degree vs Log(P(Degree))")
+    plt.xlabel("Log Degree")
+    plt.ylabel("Log(P(Degree))")
+    plt.savefig("./results/log_degree_vs_log_probability.png", dpi=300, format='png') 
+    # plt.close(fig)
 
     return edges 
 
@@ -123,7 +146,7 @@ def CreateJointAccounts(deployed_contract, edges):
         (n1, n2) = edge
 
         try:
-            tx = deployed_contract.createAcc(n1, n2, balances[i], 20,{"from": admin})
+            tx = deployed_contract.createAcc(n1, n2, balances[i]/2, balances[i]/2, {"from": admin})
             tx.wait(1)
     
         except Exception as ex:
@@ -165,7 +188,7 @@ def TestTransactions(deployed_contract, n, t, every_k_transactions):
     plt.xlabel(f"transactions (in {every_k_transactions}s)")
     plt.ylabel("Success Ratio")
     plt.savefig("./results/success_ratios.png", dpi=300, format='png') 
-    plt.close(fig)
+    # plt.close(fig)
 
 def main():
     # Clear any cache of previous runs
